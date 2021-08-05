@@ -5,4 +5,6 @@ parameters:
     release_name: ${_instance}
 
     helm_values: 
+      image:
+        tag: 7.3-redhat
       replicaCount: 1
