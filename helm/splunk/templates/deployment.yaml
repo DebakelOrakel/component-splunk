@@ -57,6 +57,10 @@ spec:
               value: --accept-license
             - name: DEBUG
               value: {{ .Values.splunk.debug | quote }}
+            - name: SPLUNK_LAUNCH_CONF
+              value: OPTIMISTIC_ABOUT_FILE_LOCKING=1
+            - name: SPLUNK_PASSWORD
+              value: {{ .Values.splunk.defaultYml.splunk.password | quote }}
       volumes:
         - name: splunk-defaults
           configMap:
