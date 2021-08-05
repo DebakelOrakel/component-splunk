@@ -1,0 +1,4 @@
+parameters:
+  splunk:
+    =_metadata: {}
+    namespace: syn-splunk

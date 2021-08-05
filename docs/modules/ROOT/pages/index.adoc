@@ -1,0 +1,5 @@
+= splunk
+
+splunk is a Commodore component to manage splunk.
+
+See the xref:references/parameters.adoc[parameters] reference for further details.
