@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "splunk.fullname" . }}
+  labels:
+{{ include "splunk.labels" . | indent 4 }}
+  annotations:
+    {{- range $key, $value := .Values.service.annotations }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.httpBindPort }}
+      targetPort: http
+      name: http
+    - port: {{ .Values.service.s2sBindPort }}
+      targetPort: s2s
+      name: s2s
+    - port: {{ .Values.service.hecBindPort }}
+      targetPort: hec
+      name: hec
+    - port: {{ .Values.service.svcBindPort }}
+      targetPort: svc
+      name: svc
+    - port: {{ .Values.service.syslogBindPort }}
+      targetPort: syslog
+      name: syslog
+  selector:
+    app.kubernetes.io/name: {{ include "splunk.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}

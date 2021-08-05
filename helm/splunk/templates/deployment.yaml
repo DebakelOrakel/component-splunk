@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "splunk.fullname" . }}
+  labels:
+{{ include "splunk.labels" . | indent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "splunk.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        app.kubernetes.io/name: {{ include "splunk.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+    {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      serviceAccountName: {{ template "splunk.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.httpBindPort }}
+            - name: s2s
+              containerPort: {{ .Values.service.s2sBindPort }}
+            - name: hec
+              containerPort: {{ .Values.service.hecBindPort }}
+            - name: svc
+              containerPort: {{ .Values.service.svcBindPort }}
+            - name: syslog
+              containerPort: {{ .Values.service.syslogBindPort }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: splunk-defaults
+              mountPath: /tmp/defaults
+            - name: splunk-apps
+              mountPath: /tmp/apps
+          env:
+            - name: SPLUNK_START_ARGS
+              value: --accept-license
+            - name: DEBUG
+              value: {{ .Values.splunk.debug | quote }}
+      volumes:
+        - name: splunk-defaults
+          configMap:
+            name: {{ include "splunk.fullname" . }}-defaults
+        - name: splunk-apps
+          configMap:
+            name: {{ include "splunk.fullname" . }}-apps
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

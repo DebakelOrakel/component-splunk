@@ -9,4 +9,13 @@ parameters:
           - splunk/component/main.jsonnet
         input_type: jsonnet
         output_path: splunk/
+      # Helm Chart
+      - output_path: splunk/01_helmchart
+        input_type: helm
+        input_paths:
+          - splunk/helm/splunk
+        helm_params:
+          release_name: ${splunk:release_name}
+          namespace: ${splunk:namespace}
+        helm_values: ${splunk:helm_values}
 

@@ -1,0 +1,236 @@
+# Default values for splunk.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 3
+
+image:
+  repository: splunk/splunk
+  tag: 7.3.3
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name:
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  httpBindPort: 8000
+  s2sBindPort: 9997
+  hecBindPort: 8088
+  svcBindPort: 8089
+  syslogBindPort: 5514
+  ##
+  ## annotations:
+  ##   service.beta.kubernetes.io/aws-load-balancer-internal: 0.0.0.0/0
+  ##   service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+  ##   service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "sandbox-infra-subnet"
+  ##
+  annotations: {}
+
+##
+## When using an ingress, you don't specify the port
+## that's used for HEC. It's assumed :443 is used for both
+## the UI and HEC. These are the paths under any "host" value
+## that will route to the HEC.
+##
+## For example, given "ingress.hosts: [splunk.example.com]",
+## then the UI will be at https://splunk.example.com, and the
+## HEC endpoints will be at https://splunk.example.com/services/collector/...
+##
+## If you *aren't* using an ingress and are using a service: LoadBalancer,
+## then you still have to specify the port,
+## e.g. "https://loadbalanacerip:8088/services/..."
+##
+## It's *sort of* like the setup used by Splunk Cloud
+## https://docs.splunk.com/Documentation/SplunkCloud/7.2.7/Data/Senddata
+##
+## Generally we assume ingress is handling TLS termination, so TLS should
+## be disabled on the HEC, etc... Or I guess you could have the ingress do
+## TLS passthrough if you wanted to configure certificates on the
+## Splunk server directly. You do you.
+##
+ingress:
+  enabled: false
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # nginx.ingress.kubernetes.io/affinity: cookie
+    # nginx.ingress.kubernetes.io/rewrite-target: /
+    # certmanager.k8s.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - splunk.127.0.0.1.xip.io
+
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - splunk.127.0.0.1.xip.io
+
+  ##
+  ## https://docs.splunk.com/Documentation/Splunk/7.3.2/Data/HECRESTendpoints
+  ##
+  ## There's probably no reason to change these, but if you want
+  ## to add more paths, in your values.yaml you'll likely need to include
+  ## the paths defined in this default
+  ##
+  hec:
+    paths:
+      - /services/collector
+      - /services/collector/event
+      - /services/collector/raw
+
+##
+## Strategy for deployment updates
+##
+## strategy:
+##   type: RollingUpdate
+##   rollingUpdate:
+##     maxSurge: 1
+##     maxUnavailable: 25%
+##
+strategy: {}
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+## Affinity and anti-affinity on web deployment.
+## By default, this will best-effort schedule the pods on different hosts
+##
+affinity: # {}
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - splunk
+          topologyKey: "kubernetes.io/hostname"
+
+##
+## Rollback limit
+## Prevents a ton of replicasets from sticking
+## around forever
+##
+revisionHistoryLimit: 2
+
+splunk:
+  ##
+  ## Print Ansible vars to stdout (supports Docker logging)
+  ##
+  debug: false
+
+  ##
+  ## https://github.com/splunk/splunk-ansible/blob/develop/docs/advanced/default.yml.spec.md#example
+  ##
+  defaultYml:
+    ansible_post_tasks: null
+    ansible_pre_tasks: null
+    hide_password: false
+    retry_num: 50
+    shc_bootstrap_delay: 30
+    splunk_home_ownership_enforcement: true
+
+    config:
+      baked: default.yml
+      defaults_dir: /tmp/defaults
+      env:
+        headers: null
+        var: SPLUNK_DEFAULTS_URL
+        verify: true
+      host:
+        headers: null
+        url: null
+        verify: true
+      max_delay: 60
+      max_retries: 3
+      max_timeout: 1200
+
+    splunk:
+      role: splunk_standalone
+      upgrade: false
+      build_location: /tmp/splunk.tgz
+      build_remote_src: true
+      license_master_included: false
+      ## TODO
+      ## should eventually be able to have user-provided apps
+      ## https://stackoverflow.com/questions/51843992/embeding-conf-files-into-helm-chart
+      apps_location:
+        - "/tmp/apps/rfc5424-syslog_11.tgz"
+      license_uri: null
+      admin_user: admin
+      app_paths:
+        default: /opt/splunk/etc/apps
+        deployment: /opt/splunk/etc/deployment-apps
+        httpinput: /opt/splunk/etc/apps/splunk_httpinput
+        idxc: /opt/splunk/etc/master-apps
+        shc: /opt/splunk/etc/shcluster/apps
+      enable_service: false
+      exec: /opt/splunk/bin/splunk
+      group: splunk
+      hec_disabled: 0
+      hec_enableSSL: 1
+      hec_port: 8088
+      hec_token: 4a8a737d-5452-426c-a6f7-106dca4e813f
+      home: /opt/splunk
+      http_enableSSL: 0
+      http_enableSSL_cert: null
+      http_enableSSL_privKey: null
+      http_enableSSL_privKey_password: null
+      http_port: 8000
+      idxc:
+        enable: false
+        label: idxc_label
+        replication_factor: 3
+        replication_port: 9887
+        search_factor: 3
+        secret: dmwHG97SpM+GzeGPUELwr7xXowSAVmLW
+      ignore_license: false
+      license_download_dest: /tmp/splunk.lic
+      nfr_license: /tmp/nfr_enterprise.lic
+      opt: /opt
+      password: helloworld
+      pid: /opt/splunk/var/run/splunk/splunkd.pid
+      s2s_enable: true
+      s2s_port: 9997
+      search_head_cluster_url: null
+      secret: null
+      shc:
+        enable: false
+        label: shc_label
+        replication_factor: 3
+        replication_port: 9887
+        secret: EpcUlTUHMSOhdjRZb3QqPYf9Lf7L991c
+      smartstore: null
+      svc_port: 8089
+      tar_dir: splunk
+      user: splunk
+      wildcard_license: false
