@@ -3,3 +3,5 @@ parameters:
     =_metadata: {}
     namespace: syn-splunk
     release_name: ${_instance}
+
+    helm_values: {}
